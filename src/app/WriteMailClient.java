@@ -3,6 +3,10 @@ package app;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.security.KeyStore;
+import java.security.PublicKey;
+import java.security.Security;
+import java.security.cert.Certificate;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -10,7 +14,10 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.mail.internet.MimeMessage;
 
+import model.mailclient.MailBody;
+
 import org.apache.xml.security.utils.JavaUtils;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import com.google.api.services.gmail.Gmail;
 
@@ -19,12 +26,17 @@ import util.GzipUtil;
 import util.IVHelper;
 import support.MailHelper;
 import support.MailWritter;
+import keystore.KeyStoreReader;
 
 public class WriteMailClient extends MailClient {
 
 	private static final String KEY_FILE = "./data/session.key";
 	private static final String IV1_FILE = "./data/iv1.bin";
 	private static final String IV2_FILE = "./data/iv2.bin";
+	
+	private static final String KEY_STORE_FILE = "./data/usera.jks";
+	private static final String KEY_STORE_PASS = "1234";
+	private static final String KEY_STORE_ALIAS = "user b";
 	
 	public static void main(String[] args) {
 		
@@ -73,11 +85,28 @@ public class WriteMailClient extends MailClient {
 			
 			
 			//snimaju se bajtovi kljuca i IV.
-			JavaUtils.writeBytesToFilename(KEY_FILE, secretKey.getEncoded());
-			JavaUtils.writeBytesToFilename(IV1_FILE, ivParameterSpec1.getIV());
-			JavaUtils.writeBytesToFilename(IV2_FILE, ivParameterSpec2.getIV());
+//			JavaUtils.writeBytesToFilename(KEY_FILE, secretKey.getEncoded());
+//			JavaUtils.writeBytesToFilename(IV1_FILE, ivParameterSpec1.getIV());
+//			JavaUtils.writeBytesToFilename(IV2_FILE, ivParameterSpec2.getIV());
+//			
 			
-        	MimeMessage mimeMessage = MailHelper.createMimeMessage(reciever, ciphersubjectStr, ciphertextStr);
+			KeyStore keyStore = KeyStoreReader.readKeyStore(KEY_STORE_FILE, KEY_STORE_PASS.toCharArray());
+			
+			// preuzimanje sertifikata iz KeyStore-a za zeljeni alias
+			Certificate certificate = KeyStoreReader.getCertificateFromKeyStore(keyStore, KEY_STORE_ALIAS);
+			
+			PublicKey publicKey = KeyStoreReader.getPublicKeyFromCertificate(certificate);
+			Security.addProvider(new BouncyCastleProvider());
+			Cipher rsaCipherEnc = Cipher.getInstance("RSA/ECB/PKCS1Padding","BC");
+			rsaCipherEnc.init(Cipher.ENCRYPT_MODE,publicKey);
+			
+			byte[] krTajnKljuc = rsaCipherEnc.doFinal(secretKey.getEncoded());
+			
+			MailBody mb = new MailBody(ciphertextStr, ivParameterSpec1.toString(), ivParameterSpec2.toString(), krTajnKljuc.toString());
+			String telo = mb.toCSV();
+			
+			
+        	MimeMessage mimeMessage = MailHelper.createMimeMessage(reciever, ciphersubjectStr, telo);
         	MailWritter.sendMessage(service, "me", mimeMessage);
         	
         }catch (Exception e) {
