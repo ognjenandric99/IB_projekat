@@ -102,8 +102,11 @@ public class WriteMailClient extends MailClient {
 			
 			byte[] krTajnKljuc = rsaCipherEnc.doFinal(secretKey.getEncoded());
 			
-			MailBody mb = new MailBody(ciphertextStr, ivParameterSpec1.toString(), ivParameterSpec2.toString(), krTajnKljuc.toString());
+			MailBody mb = new MailBody(ciphertextStr, Base64.encodeToString(ivParameterSpec1.getIV()), Base64.encodeToString(ivParameterSpec2.getIV()), Base64.encodeToString(krTajnKljuc));
 			String telo = mb.toCSV();
+			
+			
+			
 			
 			
         	MimeMessage mimeMessage = MailHelper.createMimeMessage(reciever, ciphersubjectStr, telo);

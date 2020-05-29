@@ -5,7 +5,11 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.KeyStore;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.PrivateKey;
+import java.security.Security;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +24,11 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.mail.MessagingException;
 import javax.mail.internet.MimeMessage;
 
+import keystore.KeyStoreReader;
+import model.mailclient.MailBody;
+
 import org.apache.xml.security.utils.JavaUtils;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.model.Message;
@@ -38,6 +46,11 @@ public class ReadMailClient extends MailClient {
 	private static final String KEY_FILE = "./data/session.key";
 	private static final String IV1_FILE = "./data/iv1.bin";
 	private static final String IV2_FILE = "./data/iv2.bin";
+	
+	private static final String KEY_STORE_PASS_FOR_PRIVATE_KEY = "1234";
+	private static final String KEY_STORE_FILE = "./data/userb.jks";
+	private static final String KEY_STORE_PASS = "1234";
+	private static final String KEY_STORE_ALIAS = "user b";
 	
 	public static void main(String[] args) throws IOException, InvalidKeyException, NoSuchAlgorithmException, InvalidKeySpecException, IllegalBlockSizeException, BadPaddingException, MessagingException, NoSuchPaddingException, InvalidAlgorithmParameterException {
         // Build a new authorized API client service.
@@ -79,29 +92,47 @@ public class ReadMailClient extends MailClient {
 	    
         //TODO: Decrypt a message and decompress it. The private key is stored in a file.
 		Cipher aesCipherDec = Cipher.getInstance("AES/CBC/PKCS5Padding");
-		SecretKey secretKey = new SecretKeySpec(JavaUtils.getBytesFromFile(KEY_FILE), "AES");
-		
-		
-		byte[] iv1 = JavaUtils.getBytesFromFile(IV1_FILE);
-		IvParameterSpec ivParameterSpec1 = new IvParameterSpec(iv1);
-		aesCipherDec.init(Cipher.DECRYPT_MODE, secretKey, ivParameterSpec1);
-		
+		//SecretKey secretKey = new SecretKeySpec(JavaUtils.getBytesFromFile(KEY_FILE), "AES");
 		String str = MailHelper.getText(chosenMessage);
-		byte[] bodyEnc = Base64.decode(str);
+
+		MailBody mb = new MailBody(str);
+		String secretKeyStr = mb.getEncKey();
+		KeyStore keyStore = KeyStoreReader.readKeyStore(KEY_STORE_FILE, KEY_STORE_PASS.toCharArray());
+		PrivateKey privateKey = KeyStoreReader.getPrivateKeyFromKeyStore(keyStore,KEY_STORE_ALIAS,KEY_STORE_PASS_FOR_PRIVATE_KEY.toCharArray());
+		try {
+			Security.addProvider(new BouncyCastleProvider());
+			Cipher rsaCipherDec = Cipher.getInstance("RSA/ECB/PKCS1Padding","BC");
+			rsaCipherDec.init(Cipher.DECRYPT_MODE, privateKey);
+			System.out.println(privateKey);
+			byte[] secretKeyByte = rsaCipherDec.doFinal(Base64.decode(secretKeyStr));
+			SecretKey secretKey = new SecretKeySpec(secretKeyByte, "AES");
+			
+			String iv1Str = mb.getIV1();
+			
+			IvParameterSpec ivParameterSpec1 = new IvParameterSpec(Base64.decode(iv1Str));
+			aesCipherDec.init(Cipher.DECRYPT_MODE,secretKey, ivParameterSpec1);
+			
+			byte[] telo = Base64.decode(mb.getEncMessage());
+			String receivedBodyText = new String(aesCipherDec.doFinal(telo));
+			String decompressedBodyText = GzipUtil.decompress(Base64.decode(receivedBodyText));
+			System.out.println("Body txt : "+decompressedBodyText);
+			
+			String iv2str = mb.getIV2();
+			IvParameterSpec ivParameterSpec2 = new IvParameterSpec(Base64.decode(iv2str));
+			aesCipherDec.init(Cipher.DECRYPT_MODE,secretKey, ivParameterSpec2);
+			
+			String decryptedSubjectTxt = new String(aesCipherDec.doFinal(Base64.decode(chosenMessage.getSubject())));
+			String decompressedSubjectTxt = GzipUtil.decompress(Base64.decode(decryptedSubjectTxt));
+			System.out.println("Subject text: " + new String(decompressedSubjectTxt));
+			
+			
+		} catch (NoSuchAlgorithmException e) {
+			// TODO: handle exception
+			e.printStackTrace();
+		} catch (NoSuchProviderException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
-		String receivedBodyTxt = new String(aesCipherDec.doFinal(bodyEnc));
-		String decompressedBodyText = GzipUtil.decompress(Base64.decode(receivedBodyTxt));
-		System.out.println("Body text: " + decompressedBodyText);
-		
-		
-		byte[] iv2 = JavaUtils.getBytesFromFile(IV2_FILE);
-		IvParameterSpec ivParameterSpec2 = new IvParameterSpec(iv2);
-		//inicijalizacija za dekriptovanje
-		aesCipherDec.init(Cipher.DECRYPT_MODE, secretKey, ivParameterSpec2);
-		
-		//dekompresovanje i dekriptovanje subject-a
-		String decryptedSubjectTxt = new String(aesCipherDec.doFinal(Base64.decode(chosenMessage.getSubject())));
-		String decompressedSubjectTxt = GzipUtil.decompress(Base64.decode(decryptedSubjectTxt));
-		System.out.println("Subject text: " + new String(decompressedSubjectTxt));
 	}
 }
