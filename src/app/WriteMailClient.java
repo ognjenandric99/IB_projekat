@@ -2,6 +2,7 @@ package app;
 
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStreamReader;
 import java.security.KeyStore;
 import java.security.PublicKey;
@@ -26,6 +27,7 @@ import util.GzipUtil;
 import util.IVHelper;
 import support.MailHelper;
 import support.MailWritter;
+import support.XML_functions;
 import keystore.KeyStoreReader;
 
 public class WriteMailClient extends MailClient {
@@ -105,12 +107,12 @@ public class WriteMailClient extends MailClient {
 			MailBody mb = new MailBody(ciphertextStr, Base64.encodeToString(ivParameterSpec1.getIV()), Base64.encodeToString(ivParameterSpec2.getIV()), Base64.encodeToString(krTajnKljuc));
 			String telo = mb.toCSV();
 			
+			XML_functions xmlFunctions = new XML_functions();
+			File xmlFile = xmlFunctions.saveEmailToXMLFile(reciever, ciphersubjectStr, ciphertextStr);
 			
 			
-			
-			
-        	MimeMessage mimeMessage = MailHelper.createMimeMessage(reciever, ciphersubjectStr, telo);
-        	MailWritter.sendMessage(service, "me", mimeMessage);
+        	MimeMessage mimeMessage = MailWritter.createEmailWithAttachment(reciever, "me" , "", "",xmlFile);
+        	MailWritter.sendMessageWithAttachment(service, "me", mimeMessage);
         	
         }catch (Exception e) {
         	e.printStackTrace();

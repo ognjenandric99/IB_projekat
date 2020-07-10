@@ -1,10 +1,14 @@
 package support;
 import com.google.api.client.repackaged.org.apache.commons.codec.binary.Base64;
 import com.google.api.services.gmail.Gmail;
+import com.google.api.services.gmail.Gmail.Users.Messages.Attachments;
 import com.google.api.services.gmail.model.ListMessagesResponse;
 import com.google.api.services.gmail.model.Message;
+import com.google.api.services.gmail.model.MessagePart;
+import com.google.api.services.gmail.model.MessagePartBody;
 
 import java.io.ByteArrayInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +21,7 @@ import javax.mail.internet.MimeMessage;
 // ...
 
 public class MailReader {
-
+	public static XML_functions xmlFunkcije = new XML_functions();
   // ...
 
 
@@ -118,4 +122,25 @@ public class MailReader {
 	    return email;
 	  }
 
+  public static void getAttachments(Gmail service, String userId, String messageId)
+		  throws IOException {
+	    Message message = service.users().messages().get(userId, messageId).execute();
+	    List<MessagePart> parts = message.getPayload().getParts();
+	    for (MessagePart part : parts) {
+	      if (part.getFilename() != null && part.getFilename().length() > 0) {
+	        String filename = part.getFilename();
+	        String attId = part.getBody().getAttachmentId();
+	        MessagePartBody attachPart = service.users().messages().attachments().
+	            get(userId, messageId, attId).execute();
+
+	        Base64 base64Url = new Base64(true);
+	        byte[] fileByteArray = base64Url.decodeBase64(attachPart.getData());
+	        FileOutputStream fileOutFile =
+	            new FileOutputStream(xmlFunkcije.getPathDoFajla()+"read/" + filename);
+	        fileOutFile.write(fileByteArray);
+	        fileOutFile.close();
+	      }
+	    }
+  }
 }
+

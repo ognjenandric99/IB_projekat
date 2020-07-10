@@ -94,45 +94,45 @@ public class ReadMailClient extends MailClient {
 		Cipher aesCipherDec = Cipher.getInstance("AES/CBC/PKCS5Padding");
 		//SecretKey secretKey = new SecretKeySpec(JavaUtils.getBytesFromFile(KEY_FILE), "AES");
 		String str = MailHelper.getText(chosenMessage);
-
-		MailBody mb = new MailBody(str);
-		String secretKeyStr = mb.getEncKey();
-		KeyStore keyStore = KeyStoreReader.readKeyStore(KEY_STORE_FILE, KEY_STORE_PASS.toCharArray());
-		PrivateKey privateKey = KeyStoreReader.getPrivateKeyFromKeyStore(keyStore,KEY_STORE_ALIAS,KEY_STORE_PASS_FOR_PRIVATE_KEY.toCharArray());
-		try {
-			Security.addProvider(new BouncyCastleProvider());
-			Cipher rsaCipherDec = Cipher.getInstance("RSA/ECB/PKCS1Padding","BC");
-			rsaCipherDec.init(Cipher.DECRYPT_MODE, privateKey);
-			System.out.println(privateKey);
-			byte[] secretKeyByte = rsaCipherDec.doFinal(Base64.decode(secretKeyStr));
-			SecretKey secretKey = new SecretKeySpec(secretKeyByte, "AES");
-			
-			String iv1Str = mb.getIV1();
-			
-			IvParameterSpec ivParameterSpec1 = new IvParameterSpec(Base64.decode(iv1Str));
-			aesCipherDec.init(Cipher.DECRYPT_MODE,secretKey, ivParameterSpec1);
-			
-			byte[] telo = Base64.decode(mb.getEncMessage());
-			String receivedBodyText = new String(aesCipherDec.doFinal(telo));
-			String decompressedBodyText = GzipUtil.decompress(Base64.decode(receivedBodyText));
-			System.out.println("Body txt : "+decompressedBodyText);
-			
-			String iv2str = mb.getIV2();
-			IvParameterSpec ivParameterSpec2 = new IvParameterSpec(Base64.decode(iv2str));
-			aesCipherDec.init(Cipher.DECRYPT_MODE,secretKey, ivParameterSpec2);
-			
-			String decryptedSubjectTxt = new String(aesCipherDec.doFinal(Base64.decode(chosenMessage.getSubject())));
-			String decompressedSubjectTxt = GzipUtil.decompress(Base64.decode(decryptedSubjectTxt));
-			System.out.println("Subject text: " + new String(decompressedSubjectTxt));
-			
-			
-		} catch (NoSuchAlgorithmException e) {
-			// TODO: handle exception
-			e.printStackTrace();
-		} catch (NoSuchProviderException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		MailReader.getAttachments(service, "me", answer.toString());
+//		MailBody mb = new MailBody(str);
+//		String secretKeyStr = mb.getEncKey();
+//		KeyStore keyStore = KeyStoreReader.readKeyStore(KEY_STORE_FILE, KEY_STORE_PASS.toCharArray());
+//		PrivateKey privateKey = KeyStoreReader.getPrivateKeyFromKeyStore(keyStore,KEY_STORE_ALIAS,KEY_STORE_PASS_FOR_PRIVATE_KEY.toCharArray());
+//		try {
+//			Security.addProvider(new BouncyCastleProvider());
+//			Cipher rsaCipherDec = Cipher.getInstance("RSA/ECB/PKCS1Padding","BC");
+//			rsaCipherDec.init(Cipher.DECRYPT_MODE, privateKey);
+//			System.out.println(privateKey);
+//			byte[] secretKeyByte = rsaCipherDec.doFinal(Base64.decode(secretKeyStr));
+//			SecretKey secretKey = new SecretKeySpec(secretKeyByte, "AES");
+//			
+//			String iv1Str = mb.getIV1();
+//			
+//			IvParameterSpec ivParameterSpec1 = new IvParameterSpec(Base64.decode(iv1Str));
+//			aesCipherDec.init(Cipher.DECRYPT_MODE,secretKey, ivParameterSpec1);
+//			
+//			byte[] telo = Base64.decode(mb.getEncMessage());
+//			String receivedBodyText = new String(aesCipherDec.doFinal(telo));
+//			String decompressedBodyText = GzipUtil.decompress(Base64.decode(receivedBodyText));
+//			System.out.println("Body txt : "+decompressedBodyText);
+//			
+//			String iv2str = mb.getIV2();
+//			IvParameterSpec ivParameterSpec2 = new IvParameterSpec(Base64.decode(iv2str));
+//			aesCipherDec.init(Cipher.DECRYPT_MODE,secretKey, ivParameterSpec2);
+//			
+//			String decryptedSubjectTxt = new String(aesCipherDec.doFinal(Base64.decode(chosenMessage.getSubject())));
+//			String decompressedSubjectTxt = GzipUtil.decompress(Base64.decode(decryptedSubjectTxt));
+//			System.out.println("Subject text: " + new String(decompressedSubjectTxt));
+//			
+//			
+//		} catch (NoSuchAlgorithmException e) {
+//			// TODO: handle exception
+//			e.printStackTrace();
+//		} catch (NoSuchProviderException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
 		
 	}
 }
